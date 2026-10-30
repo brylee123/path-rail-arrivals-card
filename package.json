@@ -1,0 +1,10 @@
+{
+  "name": "path-rail-arrivals-card",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Destination arrival boards and station alert ticker for Home Assistant PATH Rail",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check path-rail-arrivals-card.js"
+  }
+}

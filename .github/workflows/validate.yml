@@ -1,0 +1,41 @@
+name: Validate
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: node --check path-rail-arrivals-card.js
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa
+        with:
+          category: plugin
+  release:
+    if: github.event_name == 'release'
+    needs: [syntax, hacs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify tag and checksum
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          node -e 'if (process.env.RELEASE_TAG !== "v" + require("./package.json").version) process.exit(1)'
+          sha256sum path-rail-arrivals-card.js > SHA256SUMS.txt
+      - name: Attach dashboard module
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" path-rail-arrivals-card.js SHA256SUMS.txt
