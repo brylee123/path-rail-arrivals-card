@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0
 
 - Align adjacent cards with consistent title space, equal arrival rows, and a footer at the bottom.
 - Reserve empty prediction slots without inventing arrivals, so missing trains do not shift the ticker.

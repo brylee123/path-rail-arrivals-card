@@ -1,7 +1,7 @@
 # PATH Rail Arrivals Card
 
-**Development on main:** version 1.1.0 adds alignment for adjacent cards. The latest
-published release is still 1.0.0. Use the updated standalone JavaScript to test this change.
+**Version 1.1.0** adds alignment for adjacent cards in horizontal stacks and grids,
+with configurable minimum row and card heights.
 
 [![Release](https://img.shields.io/github/v/release/brylee123/path-rail-arrivals-card)](https://github.com/brylee123/path-rail-arrivals-card/releases)
 [![Validate](https://github.com/brylee123/path-rail-arrivals-card/actions/workflows/validate.yml/badge.svg)](https://github.com/brylee123/path-rail-arrivals-card/actions/workflows/validate.yml)
@@ -37,7 +37,7 @@ are independent; installing this card does not install or update the integration
 
 1. Download `path-rail-arrivals-card.js` from the [latest release](https://github.com/brylee123/path-rail-arrivals-card/releases/latest).
 2. Copy it to `/config/www/path-rail-arrivals-card.js`, using Samba share or Studio Code Server.
-3. Add `/local/path-rail-arrivals-card.js?v=1.0.0` as a **JavaScript module** dashboard resource.
+3. Add `/local/path-rail-arrivals-card.js?v=1.1.0` as a **JavaScript module** dashboard resource.
    Restart Home Assistant if you just created `/config/www`, then refresh your browser.
 4. Add the card as described above. Copy the new file and change the resource query version
    when updating manually.
