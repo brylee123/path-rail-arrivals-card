@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Restore the original compact card layout and natural title and arrival-row sizing from 1.0.0.
+
 ## 1.1.0
 
 - Align adjacent cards with consistent title space, equal arrival rows, and a footer at the bottom.
