@@ -1,5 +1,8 @@
 # PATH Rail Arrivals Card
 
+**Development on main:** version 1.1.0 adds alignment for adjacent cards. The latest
+published release is still 1.0.0. Use the updated standalone JavaScript to test this change.
+
 [![Release](https://img.shields.io/github/v/release/brylee123/path-rail-arrivals-card)](https://github.com/brylee123/path-rail-arrivals-card/releases)
 [![Validate](https://github.com/brylee123/path-rail-arrivals-card/actions/workflows/validate.yml/badge.svg)](https://github.com/brylee123/path-rail-arrivals-card/actions/workflows/validate.yml)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
@@ -90,6 +93,8 @@ show_alerts: true
 | `left_entities`, `right_entities` | Empty | Destination groups for bidirectional mode |
 | `left_title`, `right_title` | Direction 1 / Direction 2 | Optional column headings |
 | `max_rows` | `2` | 1-10 rows per side |
+| `row_height` | `96` | Minimum arrival-row height in pixels, 88-200 |
+| `min_height` | `0` | Optional minimum card height in pixels, 0-1600; 0 uses content sizing |
 | `show_alerts` | `true` | Show the clock and alert ticker |
 | `alert_entities` | Automatically detected | Optional service/accessibility alert sensor IDs |
 | `station` | Detected from arrival sensors | Optional station code for alert filtering |
@@ -104,7 +109,32 @@ physical platforms. Tap a row to open its entity details.
 
 Colors come from each prediction, not a fixed destination palette. Multi-color trains
 get a split-color dot, while unknown colors get a neutral dot. Appearance options retain
-these train colors. Long destination names wrap; give a bidirectional card enough dashboard width.
+these train colors. Destination names wrap up to three lines; the complete label remains
+in the row tooltip, accessible name and entity details. Titles reserve two lines and show
+the full title on hover. Give a bidirectional card enough dashboard width.
+
+### Aligning adjacent cards
+
+Cards stretch to the height supplied by a horizontal stack or grid, and keep the ticker
+at the bottom. All configured prediction slots are reserved: a missing prediction leaves
+a blank slot instead of shifting the footer. Blank slots never represent a train.
+
+For matching title, row and ticker positions, use the same layout, `max_rows`, `row_height`
+and `show_alerts` settings on adjacent cards. Set `square: false` on a grid unless you
+want square cells. Text scales with the card width rather than the browser width.
+
+Optional settings inside **each** adjacent card:
+
+```yaml
+max_rows: 2
+row_height: 96
+min_height: 0
+```
+
+Use a common `min_height`, such as `340`, if you want extra height. These are minimums:
+the card can grow for larger text or reduced-motion alert text rather than clipping it.
+Separate masonry columns do not share row heights; place matching cards in the same
+horizontal stack or grid for consistent alignment. The visual editor exposes both sizing options.
 
 ## Alert ticker
 

@@ -27,6 +27,8 @@ class PathRailArrivalsCard extends HTMLElement {
         { name: "right_title", visible: { field: "mode", value: "bidirectional" }, selector: { text: {} } },
         { name: "right_entities", visible: { field: "mode", value: "bidirectional" }, selector: entities },
         { name: "max_rows", default: 2, selector: { number: { min: 1, max: 10, mode: "box" } } },
+        { name: "row_height", default: 96, selector: { number: { min: 88, max: 200, mode: "box", unit_of_measurement: "px" } } },
+        { name: "min_height", default: 0, selector: { number: { min: 0, max: 1600, mode: "box", unit_of_measurement: "px" } } },
         { name: "show_alerts", default: true, selector: { boolean: {} } },
         { name: "alert_entities", selector: entities },
         { name: "station", selector: { select: { options: Object.entries(PATH_STATIONS).map(
@@ -36,12 +38,15 @@ class PathRailArrivalsCard extends HTMLElement {
       computeLabel: (schema) => ({ title: "Title", mode: "Board layout", color_mode: "Appearance", entities: "Destination arrival sensors",
         left_title: "Left heading", right_title: "Right heading", left_entities: "Left destinations",
         right_entities: "Right destinations", max_rows: "Rows per side", show_alerts: "Show alert ticker",
+        row_height: "Minimum row height", min_height: "Minimum card height (0 = automatic)",
         alert_entities: "Alert sensors (optional)", station: "Station for alerts (optional)" })[schema.name],
       computeHelper: (schema) => ({ entities: "Select next-arrival sensors, not countdowns. Each sensor represents one destination.",
         left_entities: "Choose the destinations to display on the left. This does not assign a physical platform.",
         right_entities: "Choose the destinations to display on the right.",
         alert_entities: "Leave empty to find PATH service and accessibility alert sensors automatically.",
-        station: "Normally detected from the arrival sensors. Station and line-related notices plus unscoped PATH notices are included." })[schema.name],
+        station: "Normally detected from the arrival sensors. Station and line-related notices plus unscoped PATH notices are included.",
+        row_height: "Use the same row height and rows per side on adjacent cards to align their rows and tickers.",
+        min_height: "Optional extra height. Cards fill the height supplied by a horizontal stack or grid." })[schema.name],
     };
   }
 
@@ -58,12 +63,16 @@ class PathRailArrivalsCard extends HTMLElement {
     if (!["auto", "light", "dark"].includes(colorMode)) throw new Error("Choose auto, light, or dark appearance.");
     const maxRows = Number(config.max_rows ?? 2);
     if (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 10) throw new Error("Rows per side must be between 1 and 10.");
+    const rowHeight = Number(config.row_height ?? 96);
+    const minHeight = Number(config.min_height ?? 0);
+    if (!Number.isInteger(rowHeight) || rowHeight < 88 || rowHeight > 200) throw new Error("Minimum row height must be between 88 and 200 pixels.");
+    if (!Number.isInteger(minHeight) || minHeight < 0 || minHeight > 1600) throw new Error("Minimum card height must be between 0 and 1600 pixels.");
     for (const key of ["entities", "left_entities", "right_entities", "alert_entities"]) {
       if (config[key] !== undefined && (!Array.isArray(config[key]) || config[key].some((id) => typeof id !== "string" || !id.startsWith("sensor.")))) {
         throw new Error(`${key} must be a list of sensor entity IDs.`);
       }
     }
-    this._config = { ...config, mode, color_mode: colorMode, max_rows: maxRows };
+    this._config = { ...config, mode, color_mode: colorMode, max_rows: maxRows, row_height: rowHeight, min_height: minHeight };
     this._lastStates = null;
     this._render();
   }
@@ -102,25 +111,29 @@ class PathRailArrivalsCard extends HTMLElement {
     const shadow = this.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = `
-      :host { display:block; }
-      ha-card { display:block; overflow:hidden; background:var(--path-background,var(--ha-card-background,var(--card-background-color,#fff))); color:var(--path-text,var(--primary-text-color,#171b20)); border-radius:var(--ha-card-border-radius,12px); }
+      :host { display:flex; flex-direction:column; min-width:0; height:100%; container-type:inline-size; }
+      ha-card { display:flex; flex-direction:column; flex:1; box-sizing:border-box; min-height:var(--path-min-height,0px); overflow:hidden; background:var(--path-background,var(--ha-card-background,var(--card-background-color,#fff))); color:var(--path-text,var(--primary-text-color,#171b20)); border-radius:var(--ha-card-border-radius,12px); }
       ha-card[data-color-mode="light"] { --path-background:#fff; --path-text:#171b20; --path-secondary:#59636d; --path-divider:#ddd; --path-ticker:#0876aa; }
       ha-card[data-color-mode="dark"] { --path-background:#181e26; --path-text:#edf2f7; --path-secondary:#b4c0ce; --path-divider:#35404e; --path-ticker:#075579; }
       ha-card[data-color-mode="auto"][data-ha-dark] { --path-background:var(--ha-card-background,var(--card-background-color,#181e26)); --path-text:var(--primary-text-color,#edf2f7); --path-secondary:var(--secondary-text-color,#b4c0ce); --path-divider:var(--divider-color,#35404e); --path-ticker:#075579; }
-      h2 { font-size:1rem; font-weight:600; margin:0; padding:14px 18px 8px; }
-      .board { display:grid; grid-template-columns:minmax(0,1fr); }
-      .board.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .column { min-width:0; }
+      h2 { flex:none; box-sizing:border-box; height:64px; display:flex; align-items:center; font-size:1rem; line-height:1.25; font-weight:600; margin:0; padding:10px 14px; overflow:hidden; }
+      h2 span { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+      .board { flex:1; display:grid; grid-template-columns:minmax(0,1fr); min-height:calc(var(--path-row-count) * var(--path-row-height)); }
+      .board.two { grid-template-columns:repeat(2,minmax(0,1fr)); min-height:calc(var(--path-row-count) * var(--path-row-height) + 40px); }
+      .column { min-width:0; display:grid; grid-template-rows:repeat(var(--path-row-count),minmax(min-content,1fr)); }
+      .board.two .column { grid-template-rows:40px repeat(var(--path-row-count),minmax(min-content,1fr)); }
       .column + .column { border-left:1px solid var(--path-divider,var(--divider-color,#ddd)); }
-      h3 { font-size:.85rem; font-weight:500; padding:4px 16px 8px; margin:0; color:var(--path-secondary,var(--secondary-text-color,#59636d)); }
-      .row { appearance:none; border:0; border-top:1px solid var(--path-divider,var(--divider-color,#ddd)); background:none; color:inherit; width:100%; display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:12px; align-items:center; padding:16px 18px; text-align:left; font:inherit; cursor:pointer; }
+      h3 { box-sizing:border-box; font-size:.85rem; line-height:16px; max-height:40px; overflow:hidden; font-weight:500; padding:4px 14px; margin:0; color:var(--path-secondary,var(--secondary-text-color,#59636d)); }
+      .row { appearance:none; box-sizing:border-box; min-width:0; min-height:var(--path-row-height); border:0; border-top:1px solid var(--path-divider,var(--divider-color,#ddd)); background:none; color:inherit; width:100%; display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:12px; align-items:center; padding:16px 18px; text-align:left; font:inherit; cursor:pointer; }
+      .placeholder { box-sizing:border-box; min-height:var(--path-row-height); border-top:1px solid var(--path-divider,var(--divider-color,#ddd)); }
       .row:focus-visible { outline:2px solid var(--primary-color,#168acc); outline-offset:-3px; }
       .dot { width:20px; height:20px; border-radius:50%; box-shadow:inset 0 0 0 1px #0002; background:#89939d; }
-      .destination { font-size:clamp(1rem,2.2vw,1.55rem); line-height:1.2; overflow-wrap:anywhere; }
-      .arrival { white-space:nowrap; font-size:clamp(1rem,2.2vw,1.55rem); font-variant-numeric:tabular-nums; }
-      .empty { margin:0; padding:16px 18px; color:var(--path-secondary,var(--secondary-text-color,#59636d)); }
+      .destination { font-size:clamp(1rem,5cqi,1.4rem); line-height:1.2; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
+      .arrival { white-space:nowrap; font-size:clamp(1rem,5cqi,1.4rem); font-variant-numeric:tabular-nums; }
+      .empty { grid-row:1 / -1; margin:0; padding:16px 18px; color:var(--path-secondary,var(--secondary-text-color,#59636d)); }
+      .board.two .empty { grid-row:2 / -1; }
       .status .destination,.status .arrival { font-size:.9rem; }
-      footer { background:var(--path-ticker,#0876aa); color:#fff; display:flex; align-items:center; gap:12px; min-height:38px; padding:0 14px; }
+      footer { flex:none; background:var(--path-ticker,#0876aa); color:#fff; display:flex; align-items:center; gap:12px; min-height:38px; padding:0 14px; }
       time { flex:none; font-size:.8rem; font-weight:600; font-variant-numeric:tabular-nums; }
       .ticker { overflow:hidden; min-width:0; flex:1; padding:8px 0; }
       .track { display:flex; width:max-content; }
@@ -132,11 +145,12 @@ class PathRailArrivalsCard extends HTMLElement {
       @keyframes path-ticker { to { transform:translateX(-50%); } }
       .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
       [hidden] { display:none !important; }
-      @media(max-width:480px) { .row { gap:7px; padding:12px 10px; grid-template-columns:14px minmax(0,1fr) auto; } .dot { width:14px;height:14px; } .destination,.arrival { font-size:1rem; } h3 { padding-left:10px; } }
-      @media(prefers-reduced-motion:reduce) { footer[data-scroll] .track { animation:none; width:100%; } .track span { white-space:normal; padding-right:0; } .track span + span { display:none !important; } }
+      @container(max-width:480px) { .row { gap:7px; padding:12px 10px; grid-template-columns:14px minmax(0,1fr) auto; } .dot { width:14px;height:14px; } h3 { padding-left:10px; } }
+      @media(prefers-reduced-motion:reduce) { .track { animation:none !important; width:100%; } .track span { white-space:normal; padding-right:0; } .track span + span { display:none !important; } }
     `;
     this._card = document.createElement("ha-card");
     this._title = document.createElement("h2");
+    this._titleText = document.createElement("span"); this._title.append(this._titleText);
     this._board = document.createElement("div"); this._board.className = "board";
     this._footer = document.createElement("footer"); this._footer.tabIndex = 0;
     this._footer.setAttribute("aria-label", "PATH alerts. Focus or hover to pause scrolling.");
@@ -181,12 +195,13 @@ class PathRailArrivalsCard extends HTMLElement {
 
   _column(ids, heading) {
     const column = document.createElement("section"); column.className = "column";
-    if (heading) { const title = document.createElement("h3"); title.textContent = heading; column.append(title); }
+    if (heading) { const title = document.createElement("h3"); title.textContent = heading; title.title = heading; column.append(title); }
     const rows = this._rows(ids);
     if (!rows.length) { const empty = document.createElement("p"); empty.className = "empty"; empty.textContent = "Select destination arrival sensors in the card editor."; column.append(empty); }
     for (const row of rows) {
       const button = document.createElement("button"); button.className = `row${row.status ? " status" : ""}`;
       button.setAttribute("aria-label", `${row.name}: ${row.text}`);
+      button.title = `${row.name}: ${row.text}`;
       const dot = document.createElement("span"); dot.className = "dot"; dot.setAttribute("aria-hidden", "true");
       if (row.colors.length === 1) dot.style.background = row.colors[0];
       else if (row.colors.length > 1) dot.style.background = `linear-gradient(90deg,${row.colors.map((color, i) => `${color} ${100*i/row.colors.length}% ${100*(i+1)/row.colors.length}%`).join(",")})`;
@@ -197,6 +212,10 @@ class PathRailArrivalsCard extends HTMLElement {
         detail: { entityId: row.id }, bubbles: true, composed: true,
       })));
       column.append(button);
+    }
+    if (rows.length) for (let index = rows.length; index < this._config.max_rows; index++) {
+      const placeholder = document.createElement("div"); placeholder.className = "placeholder";
+      placeholder.setAttribute("aria-hidden", "true"); column.append(placeholder);
     }
     return column;
   }
@@ -235,6 +254,9 @@ class PathRailArrivalsCard extends HTMLElement {
   _render() {
     if (!this._config || !this._hass) return;
     this._build();
+    this._card.style.setProperty("--path-row-count", this._config.max_rows);
+    this._card.style.setProperty("--path-row-height", `${this._config.row_height}px`);
+    this._card.style.setProperty("--path-min-height", `${this._config.min_height}px`);
     this._card.dataset.colorMode = this._config.color_mode;
     this._card.toggleAttribute("data-ha-dark", this._hass.themes?.darkMode === true);
     const ids = this._ids();
@@ -244,7 +266,8 @@ class PathRailArrivalsCard extends HTMLElement {
     if (this._lastStates?.length === states.length && states.every((state, i) => state === this._lastStates[i]) && this._lastLocale === locale) return;
     this._lastStates = states; this._lastLocale = locale;
     const stationName = ids.map((id) => this._hass.states[id]?.attributes.station_name).find(Boolean);
-    this._title.textContent = this._config.title || (stationName ? `PATH ${stationName}` : "PATH arrivals");
+    this._titleText.textContent = this._config.title || (stationName ? `PATH ${stationName}` : "PATH arrivals");
+    this._title.title = this._titleText.textContent;
     this._board.classList.toggle("two", this._config.mode === "bidirectional");
     this._board.replaceChildren(...(this._config.mode === "single"
       ? [this._column(this._config.entities || [], "")]
@@ -262,7 +285,11 @@ class PathRailArrivalsCard extends HTMLElement {
     requestAnimationFrame(() => this._measureTicker());
   }
 
-  getCardSize() { return 1 + (this._config?.max_rows ?? 2) * 1.4; }
+  getCardSize() {
+    const content = 64 + (this._config?.max_rows ?? 2) * (this._config?.row_height ?? 96)
+      + (this._config?.mode === "bidirectional" ? 40 : 0) + (this._config?.show_alerts === false ? 0 : 38);
+    return Math.ceil(Math.max(content, this._config?.min_height ?? 0) / 50);
+  }
   getGridOptions() { return { columns: 12, rows: "auto", min_columns: 6 }; }
 }
 

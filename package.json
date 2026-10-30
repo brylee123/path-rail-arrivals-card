@@ -1,6 +1,6 @@
 {
   "name": "path-rail-arrivals-card",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Destination arrival boards and station alert ticker for Home Assistant PATH Rail",
   "license": "MIT",
